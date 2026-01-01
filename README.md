@@ -25,12 +25,12 @@ Mini production-like observability lab featuring a Node.js order service with me
 
 ## Quick Start
 
-1. Install Docker + Docker Compose.
+1. Install Docker + Docker Compose and make sure the daemon is running (e.g., `docker info`).
 2. Clone this repo and `cd grafana monitoring`.
-3. Start everything: `docker compose up --build`
-4. Open Grafana at http://localhost:3000 (user/pass: `admin` / `admin`).
-5. Hit the API (e.g., `curl -XPOST http://localhost:8080/orders`) or run the load script below.
-6. Explore dashboards, logs, and traces.
+3. Start everything: `docker compose up --build -d` (omit `-d` to watch logs).
+4. Check container health: `docker compose ps` should show every service as `running`.
+5. Hit the API (e.g., `curl http://localhost:8080/health` or `curl -XPOST http://localhost:8080/orders`).
+6. Explore Grafana at http://localhost:3000 (user/pass: `admin` / `admin`), then dive into dashboards, logs, and traces.
 
 > Tip: The stack seeds Prometheus with alert rules, Grafana with datasources/dashboards, and Loki with labels so you get insights immediately.
 
@@ -56,7 +56,7 @@ All endpoints emit metrics via middleware and traces via OpenTelemetry auto-inst
 
 ## Dashboards
 
-Dashboards live under **Dashboards → General** once Grafana boots:
+Dashboards live under **Dashboards → Observability** once Grafana boots:
 
 1. **Golden Signals** – traffic, latency, errors, saturation (CPU/memory via cAdvisor-style metrics if added).
 2. **Error Analysis** – error budget burn-down, failing endpoints, correlated logs panel (Loki).
@@ -70,7 +70,19 @@ Prometheus watches P95 latency & 5-minute error rates:
 - `HighRequestLatency`: P95 > 750ms for 5m.
 - `ErrorRateSpike`: Error rate > 10% for 3m.
 
-Alertmanager currently routes to a log receiver; wire in Slack, PagerDuty, etc., by editing `alertmanager/config.yml`.
+Alertmanager currently routes to the order service's `/alert-debug` endpoint (visible in its logs). Wire in Slack, PagerDuty, etc., by editing `alertmanager/config.yml`.
+
+## Verification Checklist
+
+Run these commands once the stack is up to confirm every signal path works:
+
+1. `curl http://localhost:8080/health` – API responding.
+2. `./scripts/load.sh` – generate traffic; watch `docker compose logs -f order-service` for structured logs.
+3. Grafana (http://localhost:3000) – open **Golden Signals** and **Error Analysis** dashboards under Observability, verify panels populate.
+4. Prometheus (http://localhost:9090) – query `http_request_total` or `histogram_quantile(0.95, ...)`.
+5. Loki (Grafana Explore) – query `{service="order-service"}` to view logs and jump to traces.
+6. Tempo (Grafana Explore) – search `service.name="order-service"`, confirm spans line up with log/metric spikes.
+7. Alertmanager (http://localhost:9093) – check that `HighRequestLatency` / `ErrorRateSpike` alerts fire after running the chaos endpoint.
 
 ## Load Generator (Optional)
 
