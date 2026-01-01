@@ -1,0 +1,20 @@
+groups:
+  - name: order-service-health
+    rules:
+      - alert: HighRequestLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{route!="/metrics"}[5m])) by (le)) > 0.75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 latency above 750ms"
+          description: "Order service latency has been above 750ms for 5 minutes. Investigate potential saturation."
+
+      - alert: ErrorRateSpike
+        expr: sum(rate(http_request_errors_total[3m])) / clamp_min(sum(rate(http_request_total[3m])), 1e-6) > 0.1
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Error rate above 10%"
+          description: "Order service error rate exceeded 10% over the past 3 minutes."

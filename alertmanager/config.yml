@@ -1,0 +1,11 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: order-service-webhook
+
+receivers:
+  - name: order-service-webhook
+    webhook_configs:
+      - url: http://order-service:8080/alert-debug
+        send_resolved: true
